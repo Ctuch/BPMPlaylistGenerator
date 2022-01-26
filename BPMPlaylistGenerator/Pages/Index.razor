@@ -1,4 +1,5 @@
 ﻿@page "/"
+@inherits SpotifyBase
 @using SpotifyAPI.Web
 @using System
 @using Microsoft.Extensions.Configuration
@@ -8,33 +9,47 @@
 
 <h1>BPM Playlist Generator</h1>
 
-<p>This tool generates playlists based on songs recommended for you.
-    Simply select up to five genres, and enter a maximum and minimum BPM for your playlist</p>
+<p>
+    This tool generates playlists based on songs recommended for you.
+    Simply select up to five genres, and enter a maximum and minimum BPM for your playlist
+</p>
 
 <p>
 
 </p>
 
-<p>
-    I want songs between:
-    <input @bind="minBPMInput" />
-    and
-    <input @bind="maxBPMInput" />
-    BPM (valid range is 0 to 500).
-</p>
+
 
 @if (_isAuthed && _me != null)
 {
     <h2>Welcome @_me.DisplayName!</h2>
+
     <p>
-        You have a grant total of @_totalPlaylistCount playlists!
-        Here are all the genres on spotify:
+        I want songs between:
+        <input @bind="minBPMInput" />
+        and
+        <input @bind="maxBPMInput" />
+        BPM (valid range is 0 to 500).
+    </p>
+
+    <p>
+        Select 1 - 5 Genres:
         <div class="col-12 row">
             <label class="col-2 font-weight-bold">CheckBox List :</label>
             <CheckBoxList Data="@_genres"
                           TextField="@((item)=>item)"
                           ValueField="@((item)=>item)"
-                          SelectedValues="@_selectedGenres" />
+                          SelectedValues="@selectedGenres" />
+        </div>
+        <div class="col-12 row">
+            <label class="col-2 font-weight-bold">Selected IDs :</label>
+            <b>@displaySelectedValue</b>
+        </div>
+
+        <br />
+        <div class="col-12 row">
+            <span class="col-2"></span>
+            <button class="form-control col-1 btn btn-primary" @onclick="ShowSelectedValues">Show Checked Values</button>
         </div>
     </p>
 }
@@ -57,12 +72,6 @@ else
 
     private List<string> _genres;
 
-    private List<string> _selectedGenres;
-
-    private string? minBPMInput;
-
-    private string? maxBPMInput;
-
     protected override void OnInitialized()
     {
         if (!string.IsNullOrEmpty(Configuration["SPOTIFY_CLIENT_ID"]))
@@ -74,8 +83,6 @@ else
                 Scope = new[] { Scopes.PlaylistReadPrivate, Scopes.PlaylistReadCollaborative }
             };
             _authUri = loginRequest.ToUri();
-
-            _selectedGenres = new List<string>();
         }
     }
 
@@ -93,7 +100,7 @@ else
         _isAuthed = fragmentParams.ContainsKey("access_token");
         if (_isAuthed)
         {
-            var spotify = new SpotifyClient(fragmentParams["access_token"]);
+            spotify = new SpotifyClient(fragmentParams["access_token"]);
 
             _me = await spotify.UserProfile.Current();
             _totalPlaylistCount = (await spotify.Playlists.CurrentUsers()).Total;
@@ -101,22 +108,32 @@ else
             var availableGenres = await spotify.Browse.GetRecommendationGenres();
             _genres = availableGenres.Genres;
 
-            if (Int32.TryParse(minBPMInput, out int minBPM) && Int32.TryParse(maxBPMInput, out int maxBPM))
+            /*if (Int32.TryParse(minBPMInput, out int minBPM) && Int32.TryParse(maxBPMInput, out int maxBPM))
             {
-                RecommendationsRequest recRequest = new RecommendationsRequest();
-                recRequest.Limit = 100;
+                var recommendationsRequest = new RecommendationsRequest
+                {
+                    Limit = 100
+                };
 
-                Dictionary<string, string> maxPairs = new Dictionary<string, string>();
-                maxPairs.Add("tempo", maxBPMInput);
-                Dictionary<string, string> minPairs = new Dictionary<string, string>();
-                minPairs.Add("tempo", minBPMInput);
-                spotify.Browse.GetRecommendations(limit: 100);
-                var recommendations = await spotify.Browse.GetRecommendations();
+                if (selectedGenres.Count > 5 || selectedGenres.Count < 1)
+                {
+                    // TODO: throw exception
+                }
+
+                foreach (var genre in selectedGenres)
+                {
+                    recommendationsRequest.SeedGenres.Add(genre);
+                }
+                recommendationsRequest.Max.Add("tempo", maxBPMInput);
+                recommendationsRequest.Min.Add("tempo", minBPMInput);
+
+                var recommendations = await spotify.Browse.GetRecommendations(recommendationsRequest);
             }
             else
             {
                 Console.WriteLine("String could not be parsed, cannot create playlist");
-            }
+            }*/
+
         }
     }
 }
